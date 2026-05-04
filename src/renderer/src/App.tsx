@@ -238,9 +238,9 @@ export default function App() {
             <div className="space-y-3 text-gray-600">
               <p><strong>수강신청서 자동 완성 앱</strong>이 새롭게 업데이트 되었습니다!</p>
               <ul className="list-disc pl-5 space-y-1 text-sm">
-                <li>✨ 수동 업데이트 기능 추가</li>
-                <li>오류 수정 및 성능 개선</li>
-                <li>업데이트 내역 알림 기능 추가</li>
+                <li>🚀 1.0.1 업데이트가 정상적으로 적용되었습니다!</li>
+                <li>[업데이트 확인] 버튼 기능 안정화</li>
+                <li>팝업 다시 보지 않기 기능 강화</li>
               </ul>
             </div>
             <div className="pt-4 flex justify-between items-center border-t">
