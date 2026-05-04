@@ -20,7 +20,34 @@ process.on('uncaughtException', (error) => {
 });
 
 function createWindow(): void {
-  // ... 생략
+  // Create the browser window.
+  const mainWindow = new BrowserWindow({
+    width: 900,
+    height: 950,
+    show: false,
+    autoHideMenuBar: true,
+    title: '미용학원 수강신청서 자동 완성',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
 }
 
 app.whenReady().then(() => {
