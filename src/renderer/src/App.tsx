@@ -35,6 +35,8 @@ export default function App() {
 
   // Modals
   const [showCourseManager, setShowCourseManager] = useState(false)
+  const [showUpdateInfo, setShowUpdateInfo] = useState(false)
+  const [appVersion, setAppVersion] = useState('')
 
   // Form State
   const [form, setForm] = useState({
@@ -68,7 +70,21 @@ export default function App() {
 
   useEffect(() => {
     loadCourses()
+    checkVersionAndShowUpdate()
   }, [])
+
+  const checkVersionAndShowUpdate = async () => {
+    try {
+      const version = await window.api.getAppVersion()
+      setAppVersion(version)
+      const hideKey = `hideUpdateInfo_${version}`
+      if (!localStorage.getItem(hideKey)) {
+        setShowUpdateInfo(true)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const loadCourses = async () => {
     const data = await window.api.loadCourses()
@@ -194,6 +210,50 @@ export default function App() {
 
   return (
     <div className="min-h-screen p-6 max-w-3xl mx-auto space-y-6">
+      {/* Update Info Modal */}
+      {showUpdateInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h2 className="text-xl font-bold text-gray-800">🎉 버전 {appVersion} 업데이트 내역</h2>
+              <button onClick={() => setShowUpdateInfo(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="space-y-3 text-gray-600">
+              <p><strong>수강신청서 자동 완성 앱</strong>이 새롭게 업데이트 되었습니다!</p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>프로그램 내부 구조 최적화 및 안정화</li>
+                <li>오류 수정 및 성능 개선</li>
+                <li>업데이트 내역 알림 기능 추가</li>
+              </ul>
+            </div>
+            <div className="pt-4 flex justify-between items-center border-t">
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                <input 
+                  type="checkbox" 
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      localStorage.setItem(`hideUpdateInfo_${appVersion}`, 'true')
+                    } else {
+                      localStorage.removeItem(`hideUpdateInfo_${appVersion}`)
+                    }
+                  }}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                이 버전에서는 다시 보지 않기
+              </label>
+              <button
+                onClick={() => setShowUpdateInfo(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors font-medium"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <FileText className="text-blue-600" />

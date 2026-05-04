@@ -87,7 +87,7 @@ if (!gotTheLock) {
       try {
         autoUpdater.checkForUpdates()
       } catch (err: any) {
-        dialog.showErrorBox('업데이트 실행 오류', `수동 실행 오류:\n${err.message}`);
+        console.error('업데이트 자동 실행 오류:', err.message);
       }
     }, 3000);
 
@@ -125,6 +125,8 @@ if (!gotTheLock) {
 
     ipcMain.on('ping', () => console.log('pong'))
     
+    ipcMain.handle('get-app-version', () => app.getVersion())
+
     ipcMain.handle('load-courses', () => {
       return loadCourses()
     })

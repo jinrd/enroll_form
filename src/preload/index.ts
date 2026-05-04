@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   loadCourses: () => ipcRenderer.invoke('load-courses'),
   saveCourses: (courses: any) => ipcRenderer.invoke('save-courses', courses),
   generatePDF: (data: any) => ipcRenderer.invoke('generate-pdf', data),
