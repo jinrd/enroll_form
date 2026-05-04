@@ -1,6 +1,6 @@
 {
   "name": "enroll_form",
-  "version": "1.0.3",
+  "version": "1.0.0",
   "description": "pdf 생성기",
   "productName": "pdf 생성기",
   "main": "./out/main/index.js",
