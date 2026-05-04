@@ -1,0 +1,40 @@
+appId: com.electron.app
+productName: enroll_form
+compression: maximum
+directories:
+  output: build
+  buildResources: build
+files:
+  - 'out/**/*'
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - 'basic_enrollment_template.pdf'
+      - 'NanumGothic.ttf'
+      - 'courses.json'
+win:
+  executableName: enroll_form
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+npmRebuild: false
+publish:
+  provider: github
+  owner: jinrd
+  repo: enroll_form
+  releaseType: release
