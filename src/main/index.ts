@@ -7,6 +7,10 @@ import icon from '../../resources/icon.png?asset'
 import { loadCourses, saveCourses } from './courseService'
 import { generatePDF } from './pdfService'
 
+if (require('electron-squirrel-startup')) {
+  app.quit()
+}
+
 // 하드웨어 가속 비활성화 (일부 PC에서의 팅김 방지)
 app.disableHardwareAcceleration();
 
@@ -72,7 +76,19 @@ if (!gotTheLock) {
     electronApp.setAppUserModelId('com.pdf.generator.app')
 
     // 업데이트 확인 및 알림 설정
-    autoUpdater.checkForUpdatesAndNotify()
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(err => {
+         dialog.showErrorBox('업데이트 실행 오류', `수동 실행 오류:\n${err.message}`);
+      });
+    }, 3000);
+
+    autoUpdater.on('checking-for-update', () => {
+      // dialog.showMessageBox({ type: 'info', title: '업데이트 확인', message: '새 버전을 확인 중입니다...' });
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      // dialog.showMessageBox({ type: 'info', title: '최신 버전', message: `현재 최신 버전(${info.version})을 사용 중입니다.` });
+    });
 
     // 업데이트가 있을 때 알림
     autoUpdater.on('update-available', (info) => {
@@ -103,6 +119,7 @@ if (!gotTheLock) {
     // 에러 발생 시
     autoUpdater.on('error', (err) => {
       console.error('Update error:', err)
+      dialog.showErrorBox('업데이트 오류', `업데이트 확인 중 오류가 발생했습니다.\n\n${err.message}`)
     })
 
     app.on('browser-window-created', (_, window) => {
