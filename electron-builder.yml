@@ -21,6 +21,7 @@ extraResources:
       - 'courses.json'
 win:
   executableName: enroll_form
+  requestedExecutionLevel: requireAdministrator
   target:
     - target: nsis
       arch:
@@ -28,6 +29,7 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  killProcessOnUninstall: true
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
