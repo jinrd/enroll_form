@@ -1,8 +1,7 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, autoUpdater } from 'electron'
 import { join } from 'path'
 import fs from 'node:fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { loadCourses, saveCourses } from './courseService'
 import { generatePDF } from './pdfService'
@@ -30,9 +29,6 @@ if (!gotTheLock) {
       mainWindow.focus()
     }
   })
-
-  // 업데이트 로그 설정 (선택사항)
-  autoUpdater.autoDownload = false // 자동으로 다운로드하지 않고 사용자에게 물어봄
 
   // 예기치 못한 에러 발생 시 프로그램이 그냥 꺼지지 않고 메시지를 보여주도록 설정
   process.on('uncaughtException', (error) => {
@@ -75,11 +71,24 @@ if (!gotTheLock) {
     // Set app user model id for windows notifications
     electronApp.setAppUserModelId('com.pdf.generator.app')
 
+    // 네이티브 autoUpdater의 서버 설정
+    const server = 'https://update.electronjs.org'
+    const url = `${server}/jinrd/enroll_form/${process.platform}-${process.arch}/${app.getVersion()}`
+    
+    // 네이티브 모듈은 setFeedURL을 반드시 호출해야 합니다
+    try {
+      autoUpdater.setFeedURL({ url })
+    } catch (err) {
+      console.error('Feed URL 설정 오류:', err);
+    }
+
     // 업데이트 확인 및 알림 설정
     setTimeout(() => {
-      autoUpdater.checkForUpdatesAndNotify().catch(err => {
-         dialog.showErrorBox('업데이트 실행 오류', `수동 실행 오류:\n${err.message}`);
-      });
+      try {
+        autoUpdater.checkForUpdates()
+      } catch (err: any) {
+        dialog.showErrorBox('업데이트 실행 오류', `수동 실행 오류:\n${err.message}`);
+      }
     }, 3000);
 
     autoUpdater.on('checking-for-update', () => {
@@ -90,29 +99,17 @@ if (!gotTheLock) {
       // dialog.showMessageBox({ type: 'info', title: '최신 버전', message: `현재 최신 버전을 사용 중입니다.` });
     });
 
-    // 업데이트가 있을 때 알림
-    autoUpdater.on('update-available', (info) => {
-      dialog.showMessageBox({
-        type: 'question',
-        title: '업데이트 안내',
-        message: `새로운 버전(${info.version})이 있습니다. 지금 다운로드하시겠습니까?`,
-        buttons: ['예', '나중에']
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.downloadUpdate()
-        }
-      })
-    })
-
-    // 다운로드 완료 시 설치 안내
-    autoUpdater.on('update-downloaded', () => {
+    // 업데이트가 다운로드 되었을 때 (네이티브 autoUpdater는 update-available과 다운로드가 동시에 일어남)
+    autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
       dialog.showMessageBox({
         type: 'info',
-        title: '다운로드 완료',
-        message: '업데이트 파일 다운로드가 완료되었습니다. 프로그램을 재시작하여 업데이트를 적용합니다.',
-        buttons: ['지금 재시작']
-      }).then(() => {
-        autoUpdater.quitAndInstall()
+        title: '업데이트 안내',
+        message: `새로운 버전(${releaseName}) 업데이트 파일이 다운로드되었습니다. 프로그램을 재시작하여 적용하시겠습니까?`,
+        buttons: ['지금 재시작', '나중에']
+      }).then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall()
+        }
       })
     })
 
