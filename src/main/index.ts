@@ -100,7 +100,7 @@ if (!gotTheLock) {
     });
 
     // 업데이트가 다운로드 되었을 때 (네이티브 autoUpdater는 update-available과 다운로드가 동시에 일어남)
-    autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    autoUpdater.on('update-downloaded', (_event, _releaseNotes, releaseName) => {
       dialog.showMessageBox({
         type: 'info',
         title: '업데이트 안내',
