@@ -86,8 +86,8 @@ if (!gotTheLock) {
       // dialog.showMessageBox({ type: 'info', title: '업데이트 확인', message: '새 버전을 확인 중입니다...' });
     });
 
-    autoUpdater.on('update-not-available', (info) => {
-      // dialog.showMessageBox({ type: 'info', title: '최신 버전', message: `현재 최신 버전(${info.version})을 사용 중입니다.` });
+    autoUpdater.on('update-not-available', () => {
+      // dialog.showMessageBox({ type: 'info', title: '최신 버전', message: `현재 최신 버전을 사용 중입니다.` });
     });
 
     // 업데이트가 있을 때 알림
