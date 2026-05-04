@@ -38,6 +38,10 @@ export default function App() {
   const [showUpdateInfo, setShowUpdateInfo] = useState(false)
   const [appVersion, setAppVersion] = useState('')
 
+  // Update States
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
+  const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null)
+
   // Form State
   const [form, setForm] = useState({
     // 개인정보 주석 처리
@@ -71,6 +75,17 @@ export default function App() {
   useEffect(() => {
     loadCourses()
     checkVersionAndShowUpdate()
+
+    // 업데이트 관련 이벤트 리스너 등록
+    window.api.onUpdateDownloaded((releaseName) => {
+      setUpdateDownloaded(releaseName)
+      setIsCheckingUpdate(false)
+    })
+
+    window.api.onUpdateNotAvailable(() => {
+      setIsCheckingUpdate(false)
+      alert('현재 최신 버전을 사용 중입니다.')
+    })
   }, [])
 
   const checkVersionAndShowUpdate = async () => {
@@ -259,13 +274,36 @@ export default function App() {
           <FileText className="text-blue-600" />
           미용학원 수강신청서 자동 완성
         </h1>
-        <button
-          onClick={() => setShowCourseManager(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md transition-colors"
-        >
-          <Settings size={18} />
-          과목 관리
-        </button>
+        <div className="flex items-center gap-2">
+          {updateDownloaded ? (
+            <button
+              onClick={() => window.api.installUpdate()}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-colors shadow-sm font-bold animate-pulse"
+            >
+              🎁 {updateDownloaded} 업데이트 적용 및 재시작
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setIsCheckingUpdate(true)
+                window.api.checkUpdate()
+              }}
+              disabled={isCheckingUpdate}
+              className={`flex items-center gap-2 px-4 py-2 text-white rounded-md transition-colors shadow-sm font-medium ${
+                isCheckingUpdate ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              {isCheckingUpdate ? '확인 중...' : '업데이트 확인'}
+            </button>
+          )}
+          <button
+            onClick={() => setShowCourseManager(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md transition-colors"
+          >
+            <Settings size={18} />
+            과목 관리
+          </button>
+        </div>
       </div>
 
       {/* Personal Info 주석 처리

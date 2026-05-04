@@ -92,31 +92,22 @@ if (!gotTheLock) {
     }, 3000);
 
     autoUpdater.on('checking-for-update', () => {
-      // dialog.showMessageBox({ type: 'info', title: '업데이트 확인', message: '새 버전을 확인 중입니다...' });
+      // 콘솔 로깅
     });
 
     autoUpdater.on('update-not-available', () => {
-      // dialog.showMessageBox({ type: 'info', title: '최신 버전', message: `현재 최신 버전을 사용 중입니다.` });
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-not-available'))
     });
 
     // 업데이트가 다운로드 되었을 때 (네이티브 autoUpdater는 update-available과 다운로드가 동시에 일어남)
     autoUpdater.on('update-downloaded', (_event, _releaseNotes, releaseName) => {
-      dialog.showMessageBox({
-        type: 'info',
-        title: '업데이트 안내',
-        message: `새로운 버전(${releaseName}) 업데이트 파일이 다운로드되었습니다. 프로그램을 재시작하여 적용하시겠습니까?`,
-        buttons: ['지금 재시작', '나중에']
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.quitAndInstall()
-        }
-      })
+      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-downloaded', releaseName))
     })
 
     // 에러 발생 시
     autoUpdater.on('error', (err) => {
       console.error('Update error:', err)
-      dialog.showErrorBox('업데이트 오류', `업데이트 확인 중 오류가 발생했습니다.\n\n${err.message}`)
+      // 에러는 콘솔에만 기록
     })
 
     app.on('browser-window-created', (_, window) => {
@@ -126,6 +117,18 @@ if (!gotTheLock) {
     ipcMain.on('ping', () => console.log('pong'))
     
     ipcMain.handle('get-app-version', () => app.getVersion())
+
+    ipcMain.handle('check-update', () => {
+      try {
+        autoUpdater.checkForUpdates()
+      } catch (e) {
+        console.error(e)
+      }
+    })
+
+    ipcMain.handle('install-update', () => {
+      autoUpdater.quitAndInstall()
+    })
 
     ipcMain.handle('load-courses', () => {
       return loadCourses()

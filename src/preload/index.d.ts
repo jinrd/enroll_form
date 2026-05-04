@@ -5,6 +5,10 @@ declare global {
     electron: ElectronAPI
     api: {
       getAppVersion: () => Promise<string>
+      checkUpdate: () => Promise<void>
+      installUpdate: () => Promise<void>
+      onUpdateDownloaded: (callback: (releaseName: string) => void) => void
+      onUpdateNotAvailable: (callback: () => void) => void
       loadCourses: () => Promise<any>
       saveCourses: (courses: any) => Promise<boolean>
       generatePDF: (data: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>

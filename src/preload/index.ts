@@ -3,6 +3,14 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 const api = {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkUpdate: () => ipcRenderer.invoke('check-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  onUpdateDownloaded: (callback: (releaseName: string) => void) => {
+    ipcRenderer.on('update-downloaded', (_event, releaseName) => callback(releaseName))
+  },
+  onUpdateNotAvailable: (callback: () => void) => {
+    ipcRenderer.on('update-not-available', () => callback())
+  },
   loadCourses: () => ipcRenderer.invoke('load-courses'),
   saveCourses: (courses: any) => ipcRenderer.invoke('save-courses', courses),
   generatePDF: (data: any) => ipcRenderer.invoke('generate-pdf', data),
