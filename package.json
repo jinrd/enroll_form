@@ -1,7 +1,8 @@
 {
   "name": "enroll_form",
-  "version": "2.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "version": "2.0.8",
+  "description": "pdf 생성기",
+  "productName": "pdf 생성기",
   "main": "./out/main/index.js",
   "author": "example.com",
   "homepage": "https://electron-vite.org",

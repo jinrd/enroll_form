@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: enroll_form
+appId: com.pdf.generator.app
+productName: pdf 생성기
 compression: maximum
 directories:
   output: build
@@ -20,20 +20,13 @@ extraResources:
       - 'NanumGothic.ttf'
       - 'courses.json'
 win:
-  executableName: enroll_form
-  requestedExecutionLevel: requireAdministrator
+  executableName: pdf_generator
   target:
-    - target: nsis
+    - target: squirrel
       arch:
         - x64
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  killProcessOnUninstall: true
-  artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
+squirrelWindows:
+  name: pdf_generator
 npmRebuild: false
 publish:
   provider: github
