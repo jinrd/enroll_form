@@ -1,20 +1,22 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, autoUpdater } from 'electron'
 import { join } from 'path'
 import fs from 'node:fs'
+import squirrelStartup from 'electron-squirrel-startup'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { loadCourses, saveCourses } from './courseService'
 import { generatePDF } from './pdfService'
+import { isCourses, isPdfData } from '../shared/types'
 
-if (require('electron-squirrel-startup')) {
+if (squirrelStartup) {
   app.quit()
 }
 
 // 하드웨어 가속 비활성화 (일부 PC에서의 팅김 방지)
-app.disableHardwareAcceleration();
+app.disableHardwareAcceleration()
 
 // 앱 이름 강제 설정 (Electron 24 이슈 대응)
-app.setName('pdf 생성기');
+app.setName('pdf 생성기')
 
 // 싱글 인스턴스 락 설정
 const gotTheLock = app.requestSingleInstanceLock()
@@ -47,7 +49,9 @@ if (!gotTheLock) {
       ...(process.platform === 'linux' ? { icon } : {}),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
-        sandbox: false
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
       }
     })
 
@@ -56,7 +60,8 @@ if (!gotTheLock) {
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
+      const url = new URL(details.url)
+      if (url.protocol === 'https:') void shell.openExternal(url.toString())
       return { action: 'deny' }
     })
 
@@ -74,40 +79,59 @@ if (!gotTheLock) {
     // 네이티브 autoUpdater의 서버 설정
     const server = 'https://update.electronjs.org'
     const url = `${server}/jinrd/enroll_form/${process.platform}-${process.arch}/${app.getVersion()}`
-    
+
     // 네이티브 모듈은 setFeedURL을 반드시 호출해야 합니다
     try {
       autoUpdater.setFeedURL({ url })
     } catch (err) {
-      console.error('Feed URL 설정 오류:', err);
+      console.error('Feed URL 설정 오류:', err)
     }
 
     // 업데이트 확인 및 알림 설정
-    setTimeout(() => {
-      try {
-        autoUpdater.checkForUpdates()
-      } catch (err: any) {
-        console.error('업데이트 자동 실행 오류:', err.message);
-      }
-    }, 3000);
+    if (app.isPackaged) {
+      setTimeout(() => {
+        try {
+          autoUpdater.checkForUpdates()
+        } catch (error: unknown) {
+          console.error(
+            '업데이트 자동 실행 오류:',
+            error instanceof Error ? error.message : '알 수 없는 오류'
+          )
+        }
+      }, 10000)
+    }
 
     autoUpdater.on('checking-for-update', () => {
       // 콘솔 로깅
-    });
+    })
+
+    let manualUpdateCheck = false
 
     autoUpdater.on('update-not-available', () => {
-      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-not-available'))
-    });
+      if (manualUpdateCheck) {
+        BrowserWindow.getAllWindows().forEach((window) =>
+          window.webContents.send('update-not-available')
+        )
+      }
+      manualUpdateCheck = false
+    })
 
     // 업데이트가 다운로드 되었을 때 (네이티브 autoUpdater는 update-available과 다운로드가 동시에 일어남)
     autoUpdater.on('update-downloaded', (_event, _releaseNotes, releaseName) => {
-      BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-downloaded', releaseName))
+      BrowserWindow.getAllWindows().forEach((w) =>
+        w.webContents.send('update-downloaded', releaseName)
+      )
     })
 
     // 에러 발생 시
     autoUpdater.on('error', (err) => {
       console.error('Update error:', err)
-      // 에러는 콘솔에만 기록
+      if (manualUpdateCheck) {
+        BrowserWindow.getAllWindows().forEach((window) =>
+          window.webContents.send('update-error', err.message)
+        )
+      }
+      manualUpdateCheck = false
     })
 
     app.on('browser-window-created', (_, window) => {
@@ -115,14 +139,27 @@ if (!gotTheLock) {
     })
 
     ipcMain.on('ping', () => console.log('pong'))
-    
+
     ipcMain.handle('get-app-version', () => app.getVersion())
 
-    ipcMain.handle('check-update', () => {
+    ipcMain.handle('check-update', async () => {
+      if (!app.isPackaged) {
+        BrowserWindow.getAllWindows().forEach((window) =>
+          window.webContents.send('update-error', '개발 모드에서는 업데이트를 확인할 수 없습니다.')
+        )
+        return
+      }
+      manualUpdateCheck = true
       try {
-        autoUpdater.checkForUpdates()
-      } catch (e) {
-        console.error(e)
+        await autoUpdater.checkForUpdates()
+      } catch (error) {
+        if (manualUpdateCheck) {
+          const message = error instanceof Error ? error.message : '알 수 없는 오류'
+          BrowserWindow.getAllWindows().forEach((window) =>
+            window.webContents.send('update-error', message)
+          )
+        }
+        manualUpdateCheck = false
       }
     })
 
@@ -135,15 +172,18 @@ if (!gotTheLock) {
     })
 
     ipcMain.handle('save-courses', (_, courses) => {
+      if (!isCourses(courses)) return false
       return saveCourses(courses)
     })
 
     ipcMain.handle('generate-pdf', async (_, data) => {
+      if (!isPdfData(data)) return { success: false, error: '잘못된 PDF 데이터입니다.' }
       return await generatePDF(data)
     })
 
     ipcMain.handle('export-courses', async (_, courses) => {
       try {
+        if (!isCourses(courses)) return { success: false, error: '잘못된 과목 데이터입니다.' }
         const { canceled, filePath } = await dialog.showSaveDialog({
           title: '과목 데이터 백업(내보내기)',
           defaultPath: join(app.getPath('desktop'), '과목백업.json'),
@@ -152,9 +192,9 @@ if (!gotTheLock) {
         if (canceled || !filePath) return { success: false }
         fs.writeFileSync(filePath, JSON.stringify(courses, null, 4), 'utf-8')
         return { success: true, filePath }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Export error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' }
       }
     })
 
@@ -167,11 +207,14 @@ if (!gotTheLock) {
         })
         if (canceled || filePaths.length === 0) return { success: false }
         const data = fs.readFileSync(filePaths[0], 'utf-8')
-        const courses = JSON.parse(data)
+        const courses: unknown = JSON.parse(data)
+        if (!isCourses(courses)) {
+          return { success: false, error: '과목 백업 형식이 올바르지 않습니다.' }
+        }
         return { success: true, courses }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Import error:', error)
-        return { success: false, error: error.message }
+        return { success: false, error: error instanceof Error ? error.message : '알 수 없는 오류' }
       }
     })
 

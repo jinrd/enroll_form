@@ -1,6 +1,7 @@
-# academy_enrollment_form_second
+# 미용학원 수강신청서 PDF 생성기
 
-An Electron application with React and TypeScript
+Electron, React, TypeScript로 만든 수강신청서 자동 작성 앱입니다.
+과목과 수강료를 관리하고, 할인과 재료비를 계산해 템플릿 PDF를 생성합니다.
 
 ## Recommended IDE Setup
 
@@ -11,24 +12,24 @@ An Electron application with React and TypeScript
 ### Install
 
 ```bash
-$ npm install
+$ pnpm install
 ```
 
 ### Development
 
 ```bash
-$ npm run dev
+$ pnpm dev
 ```
 
 ### Build
 
 ```bash
 # For windows
-$ npm run build:win
+$ pnpm build:win
 
 # For macOS
-$ npm run build:mac
+$ pnpm build:mac
 
 # For Linux
-$ npm run build:linux
+$ pnpm build:linux
 ```

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
+import { Courses, isCourses } from '../shared/types'
 
 // Path to resources (Read-only)
 const getResourcePath = (filename: string) => {
@@ -25,9 +26,9 @@ const getCoursesFilePath = () => {
   return path.join(userDataPath, 'courses.json')
 }
 
-export const loadCourses = () => {
+export const loadCourses = (): Courses => {
   const filePath = getCoursesFilePath()
-  
+
   // If user data file doesn't exist, try to copy from default resources
   if (!fs.existsSync(filePath)) {
     const defaultPath = getResourcePath('courses.json')
@@ -36,7 +37,7 @@ export const loadCourses = () => {
         fs.copyFileSync(defaultPath, filePath)
       } else {
         // 기본 파일이 없을 경우 빈 객체라도 생성
-        fs.writeFileSync(filePath, JSON.stringify({}, null, 4), 'utf-8');
+        fs.writeFileSync(filePath, JSON.stringify({}, null, 4), 'utf-8')
       }
     } catch (e) {
       console.error('Failed to copy default courses:', e)
@@ -46,25 +47,28 @@ export const loadCourses = () => {
   try {
     if (fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf-8')
-      if (!data.trim()) return {}; // 파일이 비어있는 경우 방어 로직
-      return JSON.parse(data)
+      if (!data.trim()) return {}
+      const parsed: unknown = JSON.parse(data)
+      if (isCourses(parsed)) return parsed
+      console.error('Invalid courses data; restoring defaults')
     }
   } catch (error) {
     console.error('Failed to load courses:', error)
   }
-  
+
   // Final fallback
   const defaultCourses = {
-    "헤어 디자인 실무반": { fee: "500000", material: "150000" },
-    "프로 메이크업 아티스트": { fee: "650000", material: "250000" },
-    "네일아트 국가자격증반": { fee: "400000", material: "100000" },
-    "에스테틱/피부관리반": { fee: "600000", material: "200000" }
+    '헤어 디자인 실무반': { fee: '500000', material: '150000' },
+    '프로 메이크업 아티스트': { fee: '650000', material: '250000' },
+    '네일아트 국가자격증반': { fee: '400000', material: '100000' },
+    '에스테틱/피부관리반': { fee: '600000', material: '200000' }
   }
   saveCourses(defaultCourses)
   return defaultCourses
 }
 
-export const saveCourses = (courses: any) => {
+export const saveCourses = (courses: Courses): boolean => {
+  if (!isCourses(courses)) return false
   const filePath = getCoursesFilePath()
   try {
     fs.writeFileSync(filePath, JSON.stringify(courses, null, 4), 'utf-8')

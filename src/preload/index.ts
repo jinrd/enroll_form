@@ -1,20 +1,31 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { Courses, PdfData } from '../shared/types'
 
 const api = {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkUpdate: () => ipcRenderer.invoke('check-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   onUpdateDownloaded: (callback: (releaseName: string) => void) => {
-    ipcRenderer.on('update-downloaded', (_event, releaseName) => callback(releaseName))
+    const listener = (_event: Electron.IpcRendererEvent, releaseName: string) =>
+      callback(releaseName)
+    ipcRenderer.on('update-downloaded', listener)
+    return () => ipcRenderer.removeListener('update-downloaded', listener)
   },
   onUpdateNotAvailable: (callback: () => void) => {
-    ipcRenderer.on('update-not-available', () => callback())
+    const listener = () => callback()
+    ipcRenderer.on('update-not-available', listener)
+    return () => ipcRenderer.removeListener('update-not-available', listener)
+  },
+  onUpdateError: (callback: (message: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message)
+    ipcRenderer.on('update-error', listener)
+    return () => ipcRenderer.removeListener('update-error', listener)
   },
   loadCourses: () => ipcRenderer.invoke('load-courses'),
-  saveCourses: (courses: any) => ipcRenderer.invoke('save-courses', courses),
-  generatePDF: (data: any) => ipcRenderer.invoke('generate-pdf', data),
-  exportCourses: (courses: any) => ipcRenderer.invoke('export-courses', courses),
+  saveCourses: (courses: Courses) => ipcRenderer.invoke('save-courses', courses),
+  generatePDF: (data: PdfData) => ipcRenderer.invoke('generate-pdf', data),
+  exportCourses: (courses: Courses) => ipcRenderer.invoke('export-courses', courses),
   importCourses: () => ipcRenderer.invoke('import-courses')
 }
 

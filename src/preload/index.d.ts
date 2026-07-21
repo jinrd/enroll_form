@@ -1,4 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import type { Courses, ExportResult, ImportResult, PdfData, PdfResult } from '../shared/types'
 
 declare global {
   interface Window {
@@ -7,13 +8,14 @@ declare global {
       getAppVersion: () => Promise<string>
       checkUpdate: () => Promise<void>
       installUpdate: () => Promise<void>
-      onUpdateDownloaded: (callback: (releaseName: string) => void) => void
-      onUpdateNotAvailable: (callback: () => void) => void
-      loadCourses: () => Promise<any>
-      saveCourses: (courses: any) => Promise<boolean>
-      generatePDF: (data: any) => Promise<{ success: boolean; outputPath?: string; error?: string }>
-      exportCourses: (courses: any) => Promise<{ success: boolean; filePath?: string; error?: string }>
-      importCourses: () => Promise<{ success: boolean; courses?: any; error?: string }>
+      onUpdateDownloaded: (callback: (releaseName: string) => void) => () => void
+      onUpdateNotAvailable: (callback: () => void) => () => void
+      onUpdateError: (callback: (message: string) => void) => () => void
+      loadCourses: () => Promise<Courses>
+      saveCourses: (courses: Courses) => Promise<boolean>
+      generatePDF: (data: PdfData) => Promise<PdfResult>
+      exportCourses: (courses: Courses) => Promise<ExportResult>
+      importCourses: () => Promise<ImportResult>
     }
   }
 }

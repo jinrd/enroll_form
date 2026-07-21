@@ -2,6 +2,30 @@ import { useState, useEffect } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Plus, Trash2, X, FileText, Settings } from 'lucide-react'
+import type { CourseInfo, Courses, PdfData } from '../../shared/types'
+
+type CourseSuffix = '' | '2'
+
+interface FormState {
+  course: string
+  isDiscount: boolean
+  discountRate: string
+  fee: string
+  material: string
+  time: string
+  month: string
+  start_date: Date | null
+  end_date: Date | null
+  course2: string
+  isDiscount2: boolean
+  discountRate2: string
+  fee2: string
+  material2: string
+  time2: string
+  month2: string
+  start_date2: Date | null
+  end_date2: Date | null
+}
 
 // --- Utility Functions ---
 const formatWithComma = (val: string | number) => {
@@ -21,7 +45,8 @@ const stripComma = (val: string | number) => {
 //   return `${clean.slice(0, 3)}-${clean.slice(3, 7)}-${clean.slice(7, 11)}`
 // }
 
-const formatDate = (date: Date) => {
+const formatDate = (date: Date | null) => {
+  if (!date) return ''
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
@@ -29,7 +54,7 @@ const formatDate = (date: Date) => {
 }
 
 export default function App() {
-  const [coursesData, setCoursesData] = useState<Record<string, { fee: string; material: string }>>({})
+  const [coursesData, setCoursesData] = useState<Courses>({})
   const [isExtraCourse, setIsExtraCourse] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -43,7 +68,7 @@ export default function App() {
   const [updateDownloaded, setUpdateDownloaded] = useState<string | null>(null)
 
   // Form State
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     // 개인정보 주석 처리
     // name: '',
     // birthdate: new Date(),
@@ -69,7 +94,7 @@ export default function App() {
     time2: '',
     month2: '',
     start_date2: new Date(),
-    end_date2: new Date(),
+    end_date2: new Date()
   })
 
   useEffect(() => {
@@ -77,15 +102,25 @@ export default function App() {
     checkVersionAndShowUpdate()
 
     // 업데이트 관련 이벤트 리스너 등록
-    window.api.onUpdateDownloaded((releaseName) => {
+    const removeDownloadedListener = window.api.onUpdateDownloaded((releaseName) => {
       setUpdateDownloaded(releaseName)
       setIsCheckingUpdate(false)
     })
 
-    window.api.onUpdateNotAvailable(() => {
+    const removeNotAvailableListener = window.api.onUpdateNotAvailable(() => {
       setIsCheckingUpdate(false)
       alert('현재 최신 버전을 사용 중입니다.')
     })
+    const removeErrorListener = window.api.onUpdateError((message) => {
+      setIsCheckingUpdate(false)
+      alert(`업데이트 확인에 실패했습니다.\n${message}`)
+    })
+
+    return () => {
+      removeDownloadedListener()
+      removeNotAvailableListener()
+      removeErrorListener()
+    }
   }, [])
 
   const checkVersionAndShowUpdate = async () => {
@@ -106,7 +141,7 @@ export default function App() {
     setCoursesData(data)
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = <K extends keyof FormState>(field: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }))
   }
 
@@ -118,14 +153,14 @@ export default function App() {
     setForm((prev) => ({ ...prev, [field]: formatWithComma(value) }))
   }
 
-  const handleCourseSelect = (courseName: string, suffix: '' | '2') => {
+  const handleCourseSelect = (courseName: string, suffix: CourseSuffix) => {
     const courseInfo = coursesData[courseName]
     if (courseInfo) {
       setForm((prev) => ({
         ...prev,
         [`course${suffix}`]: courseName,
         [`fee${suffix}`]: formatWithComma(courseInfo.fee),
-        [`material${suffix}`]: formatWithComma(courseInfo.material),
+        [`material${suffix}`]: formatWithComma(courseInfo.material)
       }))
     }
   }
@@ -137,14 +172,18 @@ export default function App() {
     return Math.floor(feeRaw * (1 - rate / 100))
   }
 
-  const getCourseDataForPDF = (suffix: '' | '2') => {
+  const getCourseDataForPDF = (suffix: CourseSuffix) => {
     const isDiscount = form[`isDiscount${suffix}`] as boolean
     const feeStr = form[`fee${suffix}`] as string
     const matStr = form[`material${suffix}`] as string
     const feeRaw = parseInt(stripComma(feeStr) || '0', 10)
     const matRaw = parseInt(stripComma(matStr) || '0', 10)
-    const actualFee = calculateActualFee(feeStr, isDiscount, form[`discountRate${suffix}`] as string)
-    
+    const actualFee = calculateActualFee(
+      feeStr,
+      isDiscount,
+      form[`discountRate${suffix}`] as string
+    )
+
     return {
       [`course${suffix}`]: form[`course${suffix}`],
       [`course_time${suffix}`]: form[`time${suffix}`],
@@ -152,13 +191,15 @@ export default function App() {
       [`course_fee${suffix}`]: formatWithComma(feeRaw),
       [`course_material_fee${suffix}`]: formatWithComma(matRaw),
       [`course_total_fee${suffix}`]: formatWithComma(feeRaw + matRaw),
-      [`start_date${suffix}`]: formatDate(form[`start_date${suffix}`] as Date),
-      [`end_date${suffix}`]: formatDate(form[`end_date${suffix}`] as Date),
-      ...(isDiscount ? {
-        [`appl_fee${suffix}`]: formatWithComma(actualFee),
-        [`appl_material_fee${suffix}`]: formatWithComma(matRaw),
-        [`appl_total_fee${suffix}`]: formatWithComma(actualFee + matRaw),
-      } : {}),
+      [`start_date${suffix}`]: formatDate(form[`start_date${suffix}`] as Date | null),
+      [`end_date${suffix}`]: formatDate(form[`end_date${suffix}`] as Date | null),
+      ...(isDiscount
+        ? {
+            [`appl_fee${suffix}`]: formatWithComma(actualFee),
+            [`appl_material_fee${suffix}`]: formatWithComma(matRaw),
+            [`appl_total_fee${suffix}`]: formatWithComma(actualFee + matRaw)
+          }
+        : {}),
       _actual_fee: actualFee,
       _actual_mat: matRaw
     }
@@ -173,11 +214,30 @@ export default function App() {
       alert('첫 번째 수강명을 선택해주세요.')
       return
     }
+    if (!form.start_date || !form.end_date) {
+      alert('개강일과 종강일을 선택해주세요.')
+      return
+    }
+    if (form.end_date < form.start_date) {
+      alert('종강일은 개강일보다 빠를 수 없습니다.')
+      return
+    }
+    if (isExtraCourse && !form.course2) {
+      alert('두 번째 수강명을 선택하거나 추가 선택을 해제해주세요.')
+      return
+    }
+    if (
+      isExtraCourse &&
+      (!form.start_date2 || !form.end_date2 || form.end_date2 < form.start_date2)
+    ) {
+      alert('두 번째 과목의 수강 기간을 확인해주세요.')
+      return
+    }
 
     setIsGenerating(true)
 
     const c1Data = getCourseDataForPDF('')
-    const pdfData: Record<string, any> = {
+    const pdfData: PdfData = {
       // 개인정보 주석 처리
       // name: form.name,
       // birthdate: formatDate(form.birthdate),
@@ -186,7 +246,7 @@ export default function App() {
       // address: form.address,
     }
 
-    Object.keys(c1Data).forEach(k => {
+    Object.keys(c1Data).forEach((k) => {
       if (!k.startsWith('_')) pdfData[k] = c1Data[k]
     })
 
@@ -196,7 +256,7 @@ export default function App() {
 
     if (isExtraCourse && form.course2) {
       const c2Data = getCourseDataForPDF('2')
-      Object.keys(c2Data).forEach(k => {
+      Object.keys(c2Data).forEach((k) => {
         if (!k.startsWith('_')) pdfData[k] = c2Data[k]
       })
       totalCourse += ` / ${form.course2}`
@@ -213,11 +273,11 @@ export default function App() {
       const res = await window.api.generatePDF(pdfData)
       if (res.success) {
         alert(`생성 완료!\n저장 경로: ${res.outputPath}`)
-      } else {
+      } else if (!res.canceled) {
         alert(`생성 실패: ${res.error}`)
       }
-    } catch (e: any) {
-      alert(`에러 발생: ${e.message}`)
+    } catch (error: unknown) {
+      alert(`에러 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
     } finally {
       setIsGenerating(false)
     }
@@ -230,23 +290,30 @@ export default function App() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h2 className="text-xl font-bold text-gray-800">🎉 버전 {appVersion} 업데이트 내역</h2>
-              <button onClick={() => setShowUpdateInfo(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-xl font-bold text-gray-800">
+                🎉 버전 {appVersion} 업데이트 내역
+              </h2>
+              <button
+                onClick={() => setShowUpdateInfo(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X size={24} />
               </button>
             </div>
             <div className="space-y-3 text-gray-600">
-              <p><strong>수강신청서 자동 완성 앱</strong>이 새롭게 업데이트 되었습니다!</p>
+              <p>
+                <strong>수강신청서 자동 완성 앱</strong>이 새롭게 업데이트 되었습니다!
+              </p>
               <ul className="list-disc pl-5 space-y-1 text-sm">
-                <li>🚀 1.0.1 업데이트가 정상적으로 적용되었습니다!</li>
+                <li>🚀 버전 {appVersion} 업데이트가 정상적으로 적용되었습니다.</li>
                 <li>[업데이트 확인] 버튼 기능 안정화</li>
                 <li>팝업 다시 보지 않기 기능 강화</li>
               </ul>
             </div>
             <div className="pt-4 flex justify-between items-center border-t">
               <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   onChange={(e) => {
                     if (e.target.checked) {
                       localStorage.setItem(`hideUpdateInfo_${appVersion}`, 'true')
@@ -284,13 +351,22 @@ export default function App() {
             </button>
           ) : (
             <button
-              onClick={() => {
+              onClick={async () => {
                 setIsCheckingUpdate(true)
-                window.api.checkUpdate()
+                try {
+                  await window.api.checkUpdate()
+                } catch (error) {
+                  setIsCheckingUpdate(false)
+                  alert(
+                    `업데이트 확인에 실패했습니다.\n${error instanceof Error ? error.message : ''}`
+                  )
+                }
               }}
               disabled={isCheckingUpdate}
               className={`flex items-center gap-2 px-4 py-2 text-white rounded-md transition-colors shadow-sm font-medium ${
-                isCheckingUpdate ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                isCheckingUpdate
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-500 hover:bg-blue-600'
               }`}
             >
               {isCheckingUpdate ? '확인 중...' : '업데이트 확인'}
@@ -370,11 +446,11 @@ export default function App() {
       */}
 
       {/* Course 1 Info */}
-      <CourseSection 
-        suffix="" 
-        form={form} 
-        coursesData={coursesData} 
-        handleInputChange={handleInputChange} 
+      <CourseSection
+        suffix=""
+        form={form}
+        coursesData={coursesData}
+        handleInputChange={handleInputChange}
         handleMoneyChange={handleMoneyChange}
         handleCourseSelect={handleCourseSelect}
         calculateActualFee={calculateActualFee}
@@ -383,10 +459,10 @@ export default function App() {
 
       {/* Extra Course Toggle */}
       <label className="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-50 rounded-md transition-colors w-fit">
-        <input 
-          type="checkbox" 
-          checked={isExtraCourse} 
-          onChange={(e) => setIsExtraCourse(e.target.checked)} 
+        <input
+          type="checkbox"
+          checked={isExtraCourse}
+          onChange={(e) => setIsExtraCourse(e.target.checked)}
           className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
         <span className="font-semibold text-gray-700">+ 두 번째 수강 과목 추가하기</span>
@@ -395,11 +471,11 @@ export default function App() {
       {/* Course 2 Info */}
       {isExtraCourse && (
         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-          <CourseSection 
-            suffix="2" 
-            form={form} 
-            coursesData={coursesData} 
-            handleInputChange={handleInputChange} 
+          <CourseSection
+            suffix="2"
+            form={form}
+            coursesData={coursesData}
+            handleInputChange={handleInputChange}
             handleMoneyChange={handleMoneyChange}
             handleCourseSelect={handleCourseSelect}
             calculateActualFee={calculateActualFee}
@@ -413,7 +489,9 @@ export default function App() {
         onClick={handleGeneratePDF}
         disabled={isGenerating}
         className={`w-full py-4 text-white text-lg font-bold rounded-xl shadow-md transition-all ${
-          isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
+          isGenerating
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
         }`}
       >
         {isGenerating ? 'PDF 생성 중...' : '수강신청서 PDF 생성'}
@@ -421,9 +499,9 @@ export default function App() {
 
       {/* Modals */}
       {showCourseManager && (
-        <CourseManagerModal 
-          onClose={() => setShowCourseManager(false)} 
-          coursesData={coursesData} 
+        <CourseManagerModal
+          onClose={() => setShowCourseManager(false)}
+          coursesData={coursesData}
           refreshCourses={loadCourses}
         />
       )}
@@ -431,8 +509,32 @@ export default function App() {
   )
 }
 
-function CourseSection({ suffix, form, coursesData, handleInputChange, handleMoneyChange, handleCourseSelect, calculateActualFee, title }: any) {
-  const actualFee = calculateActualFee(form[`fee${suffix}`], form[`isDiscount${suffix}`], form[`discountRate${suffix}`])
+interface CourseSectionProps {
+  suffix: CourseSuffix
+  form: FormState
+  coursesData: Courses
+  handleInputChange: <K extends keyof FormState>(field: K, value: FormState[K]) => void
+  handleMoneyChange: (field: string, value: string) => void
+  handleCourseSelect: (courseName: string, suffix: CourseSuffix) => void
+  calculateActualFee: (fee: string, discounted: boolean, rate: string) => number
+  title: string
+}
+
+function CourseSection({
+  suffix,
+  form,
+  coursesData,
+  handleInputChange,
+  handleMoneyChange,
+  handleCourseSelect,
+  calculateActualFee,
+  title
+}: CourseSectionProps) {
+  const actualFee = calculateActualFee(
+    form[`fee${suffix}`],
+    form[`isDiscount${suffix}`],
+    form[`discountRate${suffix}`]
+  )
 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -445,11 +547,17 @@ function CourseSection({ suffix, form, coursesData, handleInputChange, handleMon
             onChange={(e) => handleCourseSelect(e.target.value, suffix)}
             className="border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
           >
-            <option value="" disabled>과목을 선택하세요</option>
-            {Object.keys(coursesData).map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="" disabled>
+              과목을 선택하세요
+            </option>
+            {Object.keys(coursesData).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
         </div>
-        
+
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-gray-700">할인 적용</label>
           <div className="flex items-center gap-3 mt-1">
@@ -465,8 +573,10 @@ function CourseSection({ suffix, form, coursesData, handleInputChange, handleMon
               onChange={(e) => handleInputChange(`discountRate${suffix}`, e.target.value)}
               className="border border-gray-300 rounded-md p-1.5 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100"
             >
-              {[10,20,30,40,50,60,70,80,90,100].map(r => (
-                <option key={r} value={`${r}%`}>{r}%</option>
+              {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((r) => (
+                <option key={r} value={`${r}%`}>
+                  {r}%
+                </option>
               ))}
             </select>
           </div>
@@ -486,7 +596,7 @@ function CourseSection({ suffix, form, coursesData, handleInputChange, handleMon
           <label className="text-sm font-medium text-gray-700">적용가</label>
           <input
             type="text"
-            value={form[`isDiscount${suffix}`] && actualFee ? formatWithComma(actualFee) : ''}
+            value={form[`isDiscount${suffix}`] ? formatWithComma(actualFee) || '0' : ''}
             readOnly
             className="bg-gray-50 border border-gray-200 rounded-md p-2 text-blue-700 font-semibold outline-none"
           />
@@ -546,11 +656,18 @@ function CourseSection({ suffix, form, coursesData, handleInputChange, handleMon
   )
 }
 
-function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
+interface CourseManagerModalProps {
+  onClose: () => void
+  coursesData: Courses
+  refreshCourses: () => Promise<void>
+}
+
+function CourseManagerModal({ onClose, coursesData, refreshCourses }: CourseManagerModalProps) {
   const [name, setName] = useState('')
   const [fee, setFee] = useState('')
   const [material, setMaterial] = useState('')
   const [message, setMessage] = useState('')
+  const [editingName, setEditingName] = useState<string | null>(null)
 
   const handleSave = async () => {
     if (!name.trim() || !fee || !material) {
@@ -559,6 +676,7 @@ function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
       return
     }
     const newCourses = { ...coursesData }
+    if (editingName && editingName !== name) delete newCourses[editingName]
     newCourses[name] = { fee: stripComma(fee), material: stripComma(material) }
 
     const success = await window.api.saveCourses(newCourses)
@@ -567,6 +685,7 @@ function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
       setName('')
       setFee('')
       setMaterial('')
+      setEditingName(null)
       setMessage(`'${name}' 과목이 저장되었습니다.`)
       setTimeout(() => setMessage(''), 3000)
     } else {
@@ -588,7 +707,8 @@ function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
     }
   }
 
-  const handleEdit = (courseName: string, info: any) => {
+  const handleEdit = (courseName: string, info: CourseInfo) => {
+    setEditingName(courseName)
     setName(courseName)
     setFee(formatWithComma(info.fee))
     setMaterial(formatWithComma(info.material))
@@ -630,15 +750,24 @@ function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
           <div className="flex items-center gap-4">
             <h2 className="text-lg font-bold text-gray-800">과목 관리</h2>
             <div className="flex gap-2">
-              <button onClick={handleExport} className="text-xs px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 transition-colors">
+              <button
+                onClick={handleExport}
+                className="text-xs px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 transition-colors"
+              >
                 내보내기(백업)
               </button>
-              <button onClick={handleImport} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition-colors">
+              <button
+                onClick={handleImport}
+                className="text-xs px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 transition-colors"
+              >
                 불러오기(복구)
               </button>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-md transition-colors">
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-md transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
@@ -665,16 +794,22 @@ function CourseManagerModal({ onClose, coursesData, refreshCourses }: any) {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(coursesData).map(([cName, info]: any) => (
+                    {Object.entries(coursesData).map(([cName, info]) => (
                       <tr key={cName} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium text-gray-800">{cName}</td>
                         <td className="px-4 py-3">{formatWithComma(info.fee)}</td>
                         <td className="px-4 py-3">{formatWithComma(info.material)}</td>
                         <td className="px-4 py-3 text-center flex justify-center gap-2">
-                          <button onClick={() => handleEdit(cName, info)} className="text-blue-500 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(cName, info)}
+                            className="text-blue-500 hover:text-blue-700 px-2 py-1 hover:bg-blue-50 rounded-md transition-colors text-sm font-medium"
+                          >
                             수정
                           </button>
-                          <button onClick={() => handleDelete(cName)} className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors">
+                          <button
+                            onClick={() => handleDelete(cName)}
+                            className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-md transition-colors"
+                          >
                             <Trash2 size={16} />
                           </button>
                         </td>
